@@ -21,3 +21,22 @@ exports.notificaFoto = functions.firestore.document('eventos/{evento}')
             });
         }
     });
+
+const nodemailer = require('nodemailer');
+exports.enviarEmailDesinstalacion = functions.analytics.event('app_remove').onLog(event => {
+    const gmailEmail = functions.config().gmail.email;
+    const gmailPassword = functions.config().gmail.password;
+    const mailTransport = nodemailer.createTransport({
+        service: 'gmail', auth: {
+            user: gmailEmail,
+            pass: gmailPassword
+        }
+    });
+    const opcionesEmail = {
+        from: '${APP_NAME} <noreply@firebase.com>',
+        to: 'elllabel@epsa.upv.es',
+        subject: 'Desinstalación aplicación Eventos',
+        text: 'Un usuario ha desinstalado la aplicación Eventos'
+    };
+    return mailTransport.sendMail(opcionesEmail);
+});

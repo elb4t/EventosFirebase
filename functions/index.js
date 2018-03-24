@@ -8,6 +8,7 @@ const os = require('os');
 const fs = require('fs');
 
 admin.initializeApp(functions.config().firebase);
+const db = admin.firestore();
 
 var tema = "Todos";
 exports.notificaFoto = functions.firestore.document('eventos/{evento}')
@@ -97,4 +98,40 @@ exports.crearMiniatura = functions.storage.object().onChange(event => {
             metadata: metadata,
         });
     }).then(() => fs.unlinkSync(tempRuta));
+});
+
+exports.mostrarEventos = functions.https.onRequest((req, res) => {
+    var evento = req.query.evento;
+    db.collection('eventos').doc(evento).get().then(doc => {
+        if (doc.exists) {
+            res.json(doc.data());
+        } else {
+            res.send(`No se encuentra el evento ${evento}`);
+        }
+        return doc;
+    }).catch(reason => {
+        res.send("Error");
+    })
+});
+
+exports.mostrarEventosHtml = functions.https.onRequest((req, res) => {
+    var evento = req.query.evento; db.collection('eventos').doc(evento).get().then(doc => {
+        if (doc.exists) {
+            res.status(200).send(`<!doctype html>
+    <head>
+    <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css?family=Ranga"> </head>
+    <body>
+    <span style="font-family: 'Ranga',serif;
+    font-size:medium;"> El evento ${doc.data().evento} se realiza en la ciudad de ${doc.data().ciudad} el dia
+    ${doc.data().fecha}. </span>
+    </body>
+    </html>`);
+        } else {
+            res.send(`No se encuentra el evento ${evento}`);
+        }
+        return;
+    }).catch(reason => {
+        res.send("Error");
+    })
 });

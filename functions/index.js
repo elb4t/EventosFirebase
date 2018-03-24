@@ -1,6 +1,12 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
+const gcs = require('@google-cloud/storage')();
+const spawn = require('child-process-promise').spawn;
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
+
 admin.initializeApp(functions.config().firebase);
 
 var tema = "Todos";
@@ -33,10 +39,62 @@ exports.enviarEmailDesinstalacion = functions.analytics.event('app_remove').onLo
         }
     });
     const opcionesEmail = {
-        from: '${APP_NAME} <noreply@firebase.com>',
+        from: `${APP_NAME} <noreply@firebase.com>`,
         to: 'elllabel@epsa.upv.es',
         subject: 'Desinstalación aplicación Eventos',
         text: 'Un usuario ha desinstalado la aplicación Eventos'
     };
     return mailTransport.sendMail(opcionesEmail);
+});
+
+exports.crearMiniatura = functions.storage.object().onChange(event => {
+    // Código a ejecutar
+    const objeto = event.data;
+    const deposito = objeto.bucket;
+    const ruta = objeto.name;
+    const tipo = objeto.contentType;
+    const estado = objeto.resourceState;
+    const metageneration = objeto.metageneration;
+
+    // Salimos del desencadenador si el fichero no es una imagen.
+    if (!tipo.startsWith('image/')) {
+        console.log('No es una imagen.');
+        return null;
+    }
+    // Obtenemos el nombre del fichero.
+    const nombreFichero = path.basename(ruta);
+
+    // Salimos de la función si es una miniatura.
+    if (nombreFichero.startsWith('thumb_')) {
+        console.log('Existe una miniatura.');
+        return null;
+    }
+    // Salimos de la función si se trata de un evento mover o borrado.
+    if (estado === 'not_exists') {
+        console.log('Evento de borrado.');
+        return null;
+    }
+    // Salimos si no es un fichero nuevo. Sólo ha cambiado los metadata.
+    if (estado === 'exists' && metageneration > 1) {
+        console.log('Cambio de metadata.');
+        return null;
+    }
+
+    const bucket = gcs.bucket(deposito);
+    const tempRuta = path.join(os.tmpdir(), nombreFichero);
+    const metadata = {
+        contentType: tipo,
+    };
+    return bucket.file(ruta).download({
+        destination: tempRuta,
+    }).then(() => {
+        return spawn('convert', [tempRuta, '-thumbnail', '200x200>', tempRuta]);
+    }).then(() => {
+        const thumbArchivo = `thumb_${nombreFichero}`;
+        const thumbRuta = path.join(path.dirname(ruta), thumbArchivo);
+        return bucket.upload(tempRuta, {
+            destination: thumbRuta,
+            metadata: metadata,
+        });
+    }).then(() => fs.unlinkSync(tempRuta));
 });

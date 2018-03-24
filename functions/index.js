@@ -120,11 +120,12 @@ exports.mostrarEventosHtml = functions.https.onRequest((req, res) => {
             res.status(200).send(`<!doctype html>
     <head>
     <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css?family=Ranga"> </head>
-    <body>
-    <span style="font-family: 'Ranga',serif;
-    font-size:medium;"> El evento ${doc.data().evento} se realiza en la ciudad de ${doc.data().ciudad} el dia
-    ${doc.data().fecha}. </span>
+    href="https://fonts.googleapis.com/css?family=Ranga"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body><h1>
+    <span style="font-family: 'Ranga',serif;"> 
+    El evento ${doc.data().evento} se realiza en la ciudad de ${doc.data().ciudad} el dia
+    ${doc.data().fecha}. </span></h1>
     </body>
     </html>`);
         } else {
